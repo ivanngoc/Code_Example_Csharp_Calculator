@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
 using System.Globalization;
+using System.Collections;
 
 namespace targem_test
 {
@@ -567,6 +568,215 @@ namespace targem_test
                 throw new InvalidOperationException($"Не хвтило точности. left {left} right {right}");
 
             return left + right;
+        }
+    }
+
+    public class MyList<T> : IList<T>
+    {
+        private T[] chunk;
+        public int maxCapacity;
+
+        public MyList(int size = default)
+        {
+            chunk = new T[size];
+
+            maxCapacity = size;
+
+            Count = default;
+        }
+        public T this[int index]
+        {
+            get
+            {
+                if (-1 < index && index < chunk.Length)
+                {
+                    return chunk[index];
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException();
+                }
+            }
+            set
+            {
+                /// <see cref="IsReadOnly"/>
+                if (IsReadOnly) throw new AccessViolationException("Is ReadOnly = true");
+
+                if (-1 < index && index < chunk.Length)
+                {
+                    chunk[index] = value;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException();
+                }
+            }
+        }
+        public int Count { get; set; }
+        public bool IsReadOnly { get; set; } = false;
+
+        public void Add(T item)
+        {
+            ResizeCheck();
+
+            chunk[Count] = item;
+
+            Count++;
+        }
+
+        public void ResizeCheck()
+        {
+            if (Count + 1 > maxCapacity)
+            {
+                maxCapacity *= 2;
+
+                T[] newChunk = new T[maxCapacity];
+
+                chunk.CopyTo(newChunk, 0);
+
+                chunk = newChunk;
+            }
+        }
+
+        public void Clear()
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                chunk[i] = default;
+            }
+        }
+
+        public bool Contains(T item)
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                if (chunk[i].Equals(item)) return true;
+            }
+
+            return false;
+        }
+        /// <summary>
+        /// Shallow copy
+        /// </summary>
+        /// <param name="array"></param>
+        /// <param name="arrayIndex"></param>
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                array[i + arrayIndex] = chunk[i];
+            }
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return new MyEnum<T>(chunk, Count);
+        }
+
+        public int IndexOf(T item)
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                if (chunk[i].Equals(item)) return i;
+            }
+            return -1;
+        }
+
+        public void Insert(int index, T item)
+        {
+            ResizeCheck();
+
+            Count++;
+
+            T prev = default;
+
+            prev = chunk[index];
+
+            chunk[index] = item;
+
+            for (int i = index + 1; i < Count; i++)
+            {
+                T temp = chunk[i];
+
+                chunk[i] = prev;
+
+                prev = temp;
+            }
+        }
+
+        public bool Remove(T item)
+        {
+            int index = IndexOf(item);
+
+            RemoveAt(index);
+            
+            return index > -1;
+        }
+
+        public void RemoveAt(int index)
+        {
+            if (index > -1)
+            {
+                int moveCount = Count - index - 1;
+                // shift right to left
+                for (int i = 0; i < moveCount; i++)
+                {
+                    chunk[i + index] = chunk[i + index + 1];
+                }
+                Count--;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+    }
+
+    public class MyEnum<T> : IEnumerator<T>
+    {
+        public T Current { get; set; }
+
+        private int index;
+        private int indexMax;
+
+        private T[] chunk;
+
+        object IEnumerator.Current { get; }
+
+        public MyEnum(T[] chunkIn, int max)
+        {
+            chunk = chunkIn;
+            index = default;
+            indexMax = max;
+        }
+        public void Dispose()
+        {
+            this.Dispose();
+        }
+
+        public bool MoveNext()
+        {
+            index++;
+
+            bool isContinue = index < indexMax;
+
+            if (isContinue)
+            {
+                Current = chunk[index];
+            }
+            else
+            {
+                Reset();
+            }
+
+            return isContinue;
+        }
+
+        public void Reset()
+        {
+            index = default;
+            Current = chunk[index];
         }
     }
 }
